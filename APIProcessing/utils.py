@@ -20,8 +20,10 @@ def get_city_name(city_lat, city_long):
 
     return city_data[0]["name"]
 
-def get_datetime(weather_data, time):
-    utc_time = datetime.fromtimestamp(weather_data['current'][time], tz=timezone.utc)
+def get_datetime(weather_data, time):    
+    utc_time = datetime.fromtimestamp(weather_data['current'][time], tz=timezone.utc)    
     local_time = utc_time + timedelta(hours=5)
+    if time == "sunrise" or time == "sunset":
+        local_time = local_time.time()
 
     return local_time

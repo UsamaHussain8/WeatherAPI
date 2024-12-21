@@ -37,8 +37,8 @@ def get_current_weather(request):
         'weather_description': weather_data['current']['weather'][0]['description'],
         'date': local_time,
         "city": city_name,
-        # "sunrise": sunrise_time,
-        # "sunset": sunset_time
+        "sunrise": sunrise_time,
+        "sunset": sunset_time
     }
 
     current_forecast = CurrentForecast.objects.create(**current_data)
