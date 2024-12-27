@@ -13,3 +13,7 @@ class CurrentForecast(models.Model):
 
     def __str__(self):
         return f"{self.city} - {self.date}"
+
+class WeatherForecast(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    days = models.ManyToManyField(CurrentForecast)
