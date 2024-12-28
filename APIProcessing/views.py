@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import CurrentForecast
-from .serializers import CurrentForecastSerializer
+from .models import CurrentForecast, WeatherForecast
+from .serializers import CurrentForecastSerializer, WeatherForecastSerializer
 
 from .utils import get_city_geopoints, get_city_name, get_datetime
 
@@ -22,18 +22,19 @@ def get_current_weather(request):
 
     weather_json_response = requests.get(f"https://api.openweathermap.org/data/3.0/onecall?lat={city_lat}&lon={city_long}&exclude=minutely,hourly&appid={API_KEY}&units=metric")
     weather_data = json.loads(weather_json_response.text)
+    current_weather_data = weather_data['current']
 
-    local_time = get_datetime(weather_data, 'dt')
-    sunrise_time = get_datetime(weather_data, 'sunrise')
-    sunset_time = get_datetime(weather_data, 'sunset')
+    local_time = get_datetime(current_weather_data, 'dt')
+    sunrise_time = get_datetime(current_weather_data, 'sunrise')
+    sunset_time = get_datetime(current_weather_data, 'sunset')
     city_name = get_city_name(city_lat, city_long)
 
     current_data = {
-        'temperature': weather_data['current']['temp'],
-        'temperature_feels_like': weather_data['current']['feels_like'],
-        'humidity': weather_data['current']['humidity'],
-        'wind_speed': weather_data['current']['wind_speed'],
-        'weather_description': weather_data['current']['weather'][0]['description'],
+        'temperature': current_weather_data['temp'],
+        'temperature_feels_like': current_weather_data['feels_like'],
+        'humidity': current_weather_data['humidity'],
+        'wind_speed': current_weather_data['wind_speed'],
+        'weather_description': current_weather_data['weather'][0]['description'],
         'date': local_time,
         "city": city_name,
         "sunrise": sunrise_time,
@@ -52,11 +53,33 @@ def get_day_weather(request):
 
     weather_json_response = requests.get(f"https://api.openweathermap.org/data/3.0/onecall?lat={city_lat}&lon={city_long}&exclude=minutely,hourly&appid={API_KEY}&units=metric")
     weather_data = json.loads(weather_json_response.text)
-    
-    local_time = get_datetime(weather_data, 'dt')
-    sunrise_time = get_datetime(weather_data, 'sunrise')
-    sunset_time = get_datetime(weather_data, 'sunset')
-    city_name = get_city_name(city_lat, city_long)
+    daily_weather_data = weather_data['daily']
+    weather_forecast = WeatherForecast.objects.create()
 
-    print(local_time, sunrise_time, sunset_time)
-    return JsonResponse(weather_data, safe=False)
+    for day in daily_weather_data:
+        local_time = get_datetime(day, 'dt')
+        sunrise_time = get_datetime(day, 'sunrise')
+        sunset_time = get_datetime(day, 'sunset')
+        city_name = get_city_name(city_lat, city_long)
+        
+        # Prepare data for CurrentForecast
+        current_data = {
+            'temperature': day['temp']['day'],
+            'temperature_feels_like': day['feels_like']['day'],
+            'humidity': day['humidity'],
+            'wind_speed': day['wind_speed'],
+            'weather_description': day['weather'][0]['description'],
+            'date': local_time,
+            'city': city_name,
+            'sunrise': sunrise_time,
+            'sunset': sunset_time,
+        }
+
+        # Create CurrentForecast and link to WeatherForecast
+        current_forecast = CurrentForecast.objects.create(**current_data)
+        weather_forecast.days.add(current_forecast)
+
+    # Serialize the WeatherForecast instance
+    serializer = WeatherForecastSerializer(weather_forecast)
+
+    return JsonResponse(serializer.data, safe=False)
